@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+# simply prints a RackN DRP compliant version string based on the time
+# format example:  v19.11.26-150722
+
+echo $(date +v%y.%m.%d-%H%M%S)
+

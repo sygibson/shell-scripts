@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+###
+#  Set Endpoint, Username, and Password from the RS_* vars,
+#  if not specified, fallback to these DEF_* values.  Also
+#  allow complete override with CREDS (which require actual
+#  usage flags for drpcli)
+#
+#  Requires 'yq' - see install-yq script on how to get it.
+###
+
+DEF_E="https://127.0.0.1:8092"
+DEF_U="rocketskates"              # product default username
+DEF_P="r0cketsk8ts"               # product default password
+
+RS_ENDPOINT=${RS_ENDPOINT:-$DEF_E}
+RS_USERNAME=${RS_USERNAME:-$DEF_U}
+RS_PASSWORD=${RS_PASSWORD:-$DEF_P}
+CREDS=${CREDS:-"-E $RS_ENDPOINT -U $RS_USERNAME -P $RS_PASSWORD"}
+
+#echo "ep: $RS_ENDPOINT"
+#echo "us: $RS_USERNAME"
+#echo "pw: $RS_PASSWORD"
+#echo "cr: $CREDS"
+
+if ! which yq > /dev/null 2>&1
+then
+  if which install-yq > /dev/null 2>&1
+  then
+    install-yq $HOME/bin
+  else
+    echo "FATAL: No 'yq' found, can't fine 'install-yq' to get it."
+    exit 1
+  fi
+fi
+
+VER=$(set-version)
+CON="$HOME/tmp/content-$VER.yaml"
+rm -f $CON
+set -e
+#set -x
+echo "Bundle with version:  '$VER'"
+drpcli contents bundle $CON Version=$VER --format=yaml
+echo "Upload to:  '$RS_ENDPOINT'"
+drpcli $CREDS contents upload $CON \
+  | jq '"Name: \(.meta.Name)", "Counts: \(.Counts)", "Warnings: \(.Warnings)"' \
+  | sed -e 's/\\"/ /g' -e 's/ :/: /g' -e 's/"//g' \
+  | yq .
+#  | yaml2json \
+#  | jq .
+#'"Name: " .meta.Name, "Counts: " .Counts, "Warnings: " .Warnings'
+

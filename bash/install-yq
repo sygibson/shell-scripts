@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+###
+#  Install 'yq' from github mikefarah/yq compiled golang binary
+#
+###
+
+PLAT=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -p)
+[[ "$ARCH" == "x86_64" ]] && ARCH="amd64" || true
+
+case $1 in
+  force) FORCE=yes; shift 1 ;;
+esac
+
+INST_DIR="$1"
+[[ -z "$INST_DIR" ]] && INST_DIR="$(pwd)" || true
+
+YQ=yq
+if which yq > /dev/null 2>&1
+then
+  echo "'yq' found at '$(which yq)'"
+  [[ -z "$FORCE" ]] && exit 0 || true
+fi
+
+if [[ ! -w "$INST_DIR" ]]
+then
+  echo "FATAL: Install Dir ('$INST_DIR') does not exist or writable"
+  exit 1
+fi
+
+if which wget > /dev/null 2>&1
+then
+  GET="wget -O $INST_DIR/yq --quiet"
+elif which curl > /dev/null 2>&1
+then
+  GET="curl -fsSL -o $INST_DIR/yq"
+else
+  xiterr 1 "No 'wget' or 'curl' found in PATH"
+fi
+
+echo "Install yq to directory '$INST_DIR'"
+$GET https://github.com/mikefarah/yq/releases/latest/download/yq_${PLAT}_${ARCH}
+chmod +x "$INST_DIR/yq"
+YQ="$INST_DIR/yq"
+
+echo "version installed:"
+$YQ --version
+
+exit 0
