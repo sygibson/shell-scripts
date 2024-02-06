@@ -15,8 +15,12 @@ cat << EOF
     set-cores performance               # set all P-Cores enabled
                                         # set all E-Cores disabled
 
-    set-cores [ battery | efficiency ]  # set all P-Cores disabled
-                                        # set all E-Cores enabled
+    set-cores [ battery | efficiency |  # set all P-Cores disabled
+                ecores ]                # set all E-Cores enabled
+
+    set-cores [ min | 2 ]               # set 00 and 01 ON, all others OFF
+
+    set-cores [ four | 4 ]              # set 00, 12, 13, 14 ON, others OFF
 
     set-cores [ list | print | show ]   # show current Core setting state
 
@@ -24,21 +28,19 @@ cat << EOF
 EOF
 } # end usage()
 
-# SKIP Core 0 - as it is not hot-pluggable and must always
-# be online
+# SKIP Core 0 - as it is not hot-pluggable and must always be online
 PCORES=$(echo {01..11})
 ECORES=$(echo {12..19})
 
 set_cores () {
   case $1 in
-    pcores) CORES=$PCORES ;;
-    ecores) CORES=$ECORES ;;
+    ena*) MODE="-e"; shift 1 ;;
+    dis*) MODE="-d"; shift 1 ;;
+    *) echo "OOPS:  no idea what to do, internal code error"
+       exit 1
+    ;;
   esac
-
-  case $2 in
-    ena*) MODE="-e" ;;
-    dis*) MODE="-d" ;;
-  esac
+  CORES="$@"
 
   for N in $CORES; do
     sudo chcpu $MODE $N > /dev/null
@@ -46,10 +48,10 @@ set_cores () {
 }
 
 case $1 in
-  usage|help) usage; exit 0; ;;
+  usage|help|-u|-h|--help) usage; exit 0; ;;
   # "show", "list", or "print" current state
   sh*|li*|pr*)
-    echo "Cores list (Core 0 always disabled; it's not hot-pluggable):"
+    echo "Cores list (Core 0 always enabled; it's not hot-pluggable):"
     echo "  performance:  $PCORES"
     echo "  efficiency :  $ECORES"
     echo ""
@@ -59,21 +61,32 @@ case $1 in
     exit 0
     ;;
   # "performance" only cores
-  per*)
+  per*|fast)
     echo "Setting PERFORMANCE mode"
-    set_cores pcores enable
-    set_cores ecores disable
+    set_cores enable $PCORES
+    set_cores disable $ECORES
     ;;
   # "battery" optimized; or "efficiency" only
-  bat*|eff*)
+  bat*|eff*|ecores)
     echo "Setting BATTERY OPTIMIZED mode"
-    set_cores ecores enable
-    set_cores pcores disable
+    set_cores enable $ECORES
+    set_cores disable $PCORES
+    ;;
+  min*|low*|2)
+    echo "Setting MINIMUM CPU mode"
+    set_cores enable "01 02"
+    set_cores disable $(echo {02..19})
+    ;;
+  four|4)
+    echo "Setting FOUR CPU mode"
+    set_cores enable 12 13 14
+    set_cores disable $(echo {01..11}) $(echo {15..19})
     ;;
   all)
-    echo "Setting BATTERY OPTIMIZED mode"
-    set_cores pcores enable
-    set_cores ecores enable
+    echo "Setting ALL performance and efficiency cores on"
+    set_cores enable $PCORES $ECORES
+    ;;
+  *) usage
     ;;
 esac
 

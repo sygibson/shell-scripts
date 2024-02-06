@@ -46,7 +46,3 @@ drpcli $CREDS contents upload $CON \
   | jq '"Name: \(.meta.Name)", "Counts: \(.Counts)", "Warnings: \(.Warnings)"' \
   | sed -e 's/\\"/ /g' -e 's/ :/: /g' -e 's/"//g' \
   | yq .
-#  | yaml2json \
-#  | jq .
-#'"Name: " .meta.Name, "Counts: " .Counts, "Warnings: " .Warnings'
-
